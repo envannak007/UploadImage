@@ -4,8 +4,8 @@ import com.api.cluod365.dto.request.ImageRequest;
 import com.api.cluod365.dto.response.BaseResponse;
 import com.api.cluod365.dto.response.ImageResponse;
 import com.api.cluod365.service.ImageService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,8 @@ public class imageController {
             value = "/upload",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
-    public ResponseEntity<BaseResponse<ImageResponse>> upload(@ModelAttribute ImageRequest request){
+    public ResponseEntity<BaseResponse<ImageResponse>> upload(
+            @Valid @ModelAttribute ImageRequest request){
         ImageResponse response = imageService.upload(request);
         return new ResponseEntity<>(
                 BaseResponse.created("Image uploaded successfully.",response),
@@ -51,7 +52,7 @@ public class imageController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     public ResponseEntity<BaseResponse<ImageResponse>> update(@PathVariable Integer id,
-                                                              @ModelAttribute ImageRequest request){
+                                                              @Valid @ModelAttribute ImageRequest request){
         ImageResponse response = imageService.update(id,request);
         return ResponseEntity.ok(
                 BaseResponse.ok("Image updated successfully.",response)
