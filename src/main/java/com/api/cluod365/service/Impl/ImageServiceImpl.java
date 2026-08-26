@@ -23,6 +23,10 @@ public class ImageServiceImpl implements ImageService {
     @Override
     public ImageResponse upload(ImageRequest request) {
 
+        if (request.file() == null || request.file().isEmpty()){
+            throw new IllegalArgumentException("Image file is required.");
+        }
+
         try {
             // Upload image to Cloudinary
             String imageUrl = cloudinaryService.uploadImage(request.file());
@@ -65,13 +69,16 @@ public class ImageServiceImpl implements ImageService {
                 .orElseThrow(()->new RuntimeException("Image not found with id : "+ id));
         try {
             imageEntity.setName(request.name());
-            if (request.file()!=null && !request.file().isEmpty()){
+
+            if (request.file() !=null && !request.file().isEmpty()){
                 String imageUrl = cloudinaryService.uploadImage(request.file());
                 imageEntity.setImageUrl(imageUrl);
             }
+
             ImageEntity updated = imageRepository.save(imageEntity);
+
             return imageMapper.toResponse(updated);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to update image",e);
         }
     }
