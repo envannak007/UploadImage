@@ -3,6 +3,8 @@ package com.api.cluod365.service.Impl;
 import com.api.cluod365.dto.request.ImageRequest;
 import com.api.cluod365.dto.response.ImageResponse;
 import com.api.cluod365.entity.ImageEntity;
+import com.api.cluod365.exception.FileUploadException;
+import com.api.cluod365.exception.ResourceNotFoundException;
 import com.api.cluod365.mapper.ImageMapper;
 import com.api.cluod365.repository.ImageRepository;
 import com.api.cluod365.service.CloudinaryService;
@@ -43,7 +45,7 @@ public class ImageServiceImpl implements ImageService {
             return imageMapper.toResponse(saved);
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload image to Cloudinary",e);
+            throw new FileUploadException("Failed to upload image to Cloudinary",e);
         }
     }
 
@@ -58,7 +60,7 @@ public class ImageServiceImpl implements ImageService {
     @Override
     public ImageResponse findById(Integer id) {
         ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new RuntimeException("Image not found with id : "+ id));
+                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
         return imageMapper.toResponse(imageEntity);
     }
 
@@ -66,11 +68,11 @@ public class ImageServiceImpl implements ImageService {
     public ImageResponse update(Integer id, ImageRequest request) {
 
         ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new RuntimeException("Image not found with id : "+ id));
+                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
         try {
             imageEntity.setName(request.name());
 
-            if (request.file() !=null && !request.file().isEmpty()){
+            if (request.file() != null && !request.file().isEmpty()){
                 String imageUrl = cloudinaryService.uploadImage(request.file());
                 imageEntity.setImageUrl(imageUrl);
             }
@@ -79,14 +81,14 @@ public class ImageServiceImpl implements ImageService {
 
             return imageMapper.toResponse(updated);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to update image",e);
+            throw new FileUploadException("Failed to update image",e);
         }
     }
 
     @Override
     public ImageResponse delete(Integer id) {
         ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new RuntimeException("Image not found with id : "+ id));
+                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
 
         // Convert to Response before deleting
         ImageResponse response = imageMapper.toResponse(imageEntity);
