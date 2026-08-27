@@ -20,4 +20,5 @@ public class ImageEntity {
 
     @Column(nullable = false)
     private String imageUrl;
+    private String publicId;
 }

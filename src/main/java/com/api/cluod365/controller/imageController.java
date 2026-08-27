@@ -43,11 +43,11 @@ public class imageController {
     public ResponseEntity<BaseResponse<ImageResponse>> getById(@PathVariable Integer id){
         ImageResponse response = imageService.findById(id);
         return ResponseEntity.ok(
-                BaseResponse.ok("Get all image successfully.",response)
+                BaseResponse.ok("Get image successfully.",response)
         );
     }
 
-    @PostMapping(
+    @PutMapping(
             value = "/{id}",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )

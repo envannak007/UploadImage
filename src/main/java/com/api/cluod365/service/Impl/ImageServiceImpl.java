@@ -14,10 +14,12 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class ImageServiceImpl implements ImageService {
+
     private final ImageRepository imageRepository;
     private final CloudinaryService cloudinaryService;
     private final ImageMapper imageMapper;
@@ -25,32 +27,38 @@ public class ImageServiceImpl implements ImageService {
     @Override
     public ImageResponse upload(ImageRequest request) {
 
-        if (request.file() == null || request.file().isEmpty()){
+        if (request.file() == null || request.file().isEmpty()) {
             throw new IllegalArgumentException("Image file is required.");
         }
-
         try {
             // Upload image to Cloudinary
-            String imageUrl = cloudinaryService.uploadImage(request.file());
+            Map<String, String> result =
+                    cloudinaryService.uploadImage(request.file());
 
             // Create Entity
             ImageEntity imageEntity = new ImageEntity();
-            imageEntity.setName(request.name());
-            imageEntity.setImageUrl(imageUrl);
 
-            // Save to database
+            imageEntity.setName(request.name());
+            imageEntity.setImageUrl(result.get("imageUrl"));
+            imageEntity.setPublicId(result.get("publicId"));
+
+            // Save database
             ImageEntity saved = imageRepository.save(imageEntity);
 
-            // Entity to Response
             return imageMapper.toResponse(saved);
 
         } catch (IOException e) {
-            throw new FileUploadException("Failed to upload image to Cloudinary",e);
+
+            throw new FileUploadException(
+                    "Failed to upload image to Cloudinary",
+                    e
+            );
         }
     }
 
     @Override
     public List<ImageResponse> findAll() {
+
         return imageRepository.findAll()
                 .stream()
                 .map(imageMapper::toResponse)
@@ -59,8 +67,14 @@ public class ImageServiceImpl implements ImageService {
 
     @Override
     public ImageResponse findById(Integer id) {
+
         ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Image not found with id : " + id
+                        )
+                );
+
         return imageMapper.toResponse(imageEntity);
     }
 
@@ -68,31 +82,90 @@ public class ImageServiceImpl implements ImageService {
     public ImageResponse update(Integer id, ImageRequest request) {
 
         ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Image not found with id : " + id
+                        )
+                );
         try {
+
+            // Update name
             imageEntity.setName(request.name());
 
-            if (request.file() != null && !request.file().isEmpty()){
-                String imageUrl = cloudinaryService.uploadImage(request.file());
-                imageEntity.setImageUrl(imageUrl);
+            // Update image if new file is provided
+            if (request.file() != null && !request.file().isEmpty()) {
+
+                // Old Cloudinary public ID
+                String oldPublicId = imageEntity.getPublicId();
+
+                // Upload new image
+                Map<String, String> result =
+                        cloudinaryService.uploadImage(request.file());
+
+                // Set new image data
+                imageEntity.setImageUrl(result.get("imageUrl"));
+                imageEntity.setPublicId(result.get("publicId"));
+
+                // Save database
+                ImageEntity updated = imageRepository.save(imageEntity);
+
+                // Delete old image from Cloudinary
+                if (oldPublicId != null && !oldPublicId.isBlank()) {
+                    cloudinaryService.deleteImage(oldPublicId);
+                }
+
+                return imageMapper.toResponse(updated);
             }
 
+            // Update name only
             ImageEntity updated = imageRepository.save(imageEntity);
 
             return imageMapper.toResponse(updated);
+
         } catch (IOException e) {
-            throw new FileUploadException("Failed to update image",e);
+
+            throw new FileUploadException(
+                    "Failed to update image",
+                    e
+            );
         }
     }
 
     @Override
     public ImageResponse delete(Integer id) {
-        ImageEntity imageEntity = imageRepository.findById(id)
-                .orElseThrow(()->new ResourceNotFoundException("Image not found with id : "+ id));
 
-        // Convert to Response before deleting
-        ImageResponse response = imageMapper.toResponse(imageEntity);
-        imageRepository.delete(imageEntity);
-        return response;
+        ImageEntity imageEntity = imageRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Image not found with id : " + id
+                        )
+                );
+
+        // Keep response before delete
+        ImageResponse response =
+                imageMapper.toResponse(imageEntity);
+
+        try {
+
+            // Get Cloudinary public ID
+            String publicId = imageEntity.getPublicId();
+
+            // Delete from database
+            imageRepository.delete(imageEntity);
+
+            // Delete from Cloudinary
+            if (publicId != null && !publicId.isBlank()) {
+                cloudinaryService.deleteImage(publicId);
+            }
+
+            return response;
+
+        } catch (IOException e) {
+
+            throw new FileUploadException(
+                    "Failed to delete image from Cloudinary",
+                    e
+            );
+        }
     }
 }
